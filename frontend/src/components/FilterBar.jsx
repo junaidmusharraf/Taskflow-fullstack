@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 function FilterBar({
   search,
   setSearch,
@@ -5,20 +7,41 @@ function FilterBar({
   setFilter,
   priorityFilter,
   setPriorityFilter,
+  dueFilter,
+  setDueFilter,
   ordering,
   setOrdering,
   totalCount,
 }) {
+  const searchInputRef = useRef(null)
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = e.target.tagName
+      if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   return (
     <div className="filter-section">
       <div className="search-row">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search tasks by title or notes in PostgreSQL..."
-          className="input-search"
-        />
+        <div className="search-box">
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tasks by title or notes in PostgreSQL..."
+            className="input-search"
+          />
+          <span className="shortcut-hint">/</span>
+        </div>
+
         <select
           value={ordering}
           onChange={(e) => setOrdering(e.target.value)}
@@ -32,24 +55,37 @@ function FilterBar({
       </div>
 
       <div className="filter-bar">
-        <div className="filter-tabs">
+        <div className="filter-group-left">
+          <div className="filter-tabs">
+            <button
+              type="button"
+              className={filter === 'ALL' ? 'tab active' : 'tab'}
+              onClick={() => setFilter('ALL')}
+            >
+              All ({totalCount})
+            </button>
+            <button
+              type="button"
+              className={filter === 'PENDING' ? 'tab active' : 'tab'}
+              onClick={() => setFilter('PENDING')}
+            >
+              Pending
+            </button>
+            <button
+              type="button"
+              className={filter === 'COMPLETED' ? 'tab active' : 'tab'}
+              onClick={() => setFilter('COMPLETED')}
+            >
+              Completed
+            </button>
+          </div>
+
           <button
-            className={filter === 'ALL' ? 'tab active' : 'tab'}
-            onClick={() => setFilter('ALL')}
+            type="button"
+            className={dueFilter === 'OVERDUE' ? 'btn-quick-filter active' : 'btn-quick-filter'}
+            onClick={() => setDueFilter(dueFilter === 'OVERDUE' ? 'ALL' : 'OVERDUE')}
           >
-            All ({totalCount})
-          </button>
-          <button
-            className={filter === 'PENDING' ? 'tab active' : 'tab'}
-            onClick={() => setFilter('PENDING')}
-          >
-            Pending
-          </button>
-          <button
-            className={filter === 'COMPLETED' ? 'tab active' : 'tab'}
-            onClick={() => setFilter('COMPLETED')}
-          >
-            Completed
+            Overdue
           </button>
         </div>
 

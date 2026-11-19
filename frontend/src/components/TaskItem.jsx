@@ -7,6 +7,22 @@ function TaskItem({ task, projects, onToggleComplete, onUpdateTask, onDeleteTask
   const [editPriority, setEditPriority] = useState(task.priority)
   const [editDueDate, setEditDueDate] = useState(task.due_date || '')
   const [editProject, setEditProject] = useState(task.project || '')
+  const [copied, setCopied] = useState(false)
+
+  const todayStr = new Date().toISOString().split('T')[0]
+  const isOverdue = Boolean(!task.completed && task.due_date && task.due_date < todayStr)
+
+  const handleCopy = () => {
+    const parts = [`[${task.priority}] ${task.title}`]
+    if (task.project_name) parts.push(`Project: ${task.project_name}`)
+    if (task.due_date) parts.push(`Due: ${task.due_date}`)
+    if (task.description) parts.push(`Notes: ${task.description}`)
+
+    navigator.clipboard?.writeText(parts.join(' | ')).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
 
   const handleSave = () => {
     if (!editTitle.trim()) return
@@ -95,7 +111,9 @@ function TaskItem({ task, projects, onToggleComplete, onUpdateTask, onDeleteTask
               {task.priority}
             </span>
             {task.due_date && (
-              <span className="due-date">Due: {task.due_date}</span>
+              <span className={`due-date ${isOverdue ? 'overdue' : ''}`}>
+                {isOverdue ? `Overdue: ${task.due_date}` : `Due: ${task.due_date}`}
+              </span>
             )}
           </div>
           {task.description && <p className="task-desc">{task.description}</p>}
@@ -103,8 +121,11 @@ function TaskItem({ task, projects, onToggleComplete, onUpdateTask, onDeleteTask
       </div>
 
       <div className="task-actions">
-        <button onClick={() => setIsEditing(true)} className="btn-edit">Edit</button>
-        <button onClick={() => onDeleteTask(task.id)} className="btn-delete">Delete</button>
+        <button type="button" onClick={handleCopy} className="btn-copy">
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        <button type="button" onClick={() => setIsEditing(true)} className="btn-edit">Edit</button>
+        <button type="button" onClick={() => onDeleteTask(task.id)} className="btn-delete">Delete</button>
       </div>
     </li>
   )

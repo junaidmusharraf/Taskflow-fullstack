@@ -38,6 +38,9 @@ function TaskForm({ projects, onAddTask }) {
           className="input-main"
           required
         />
+      </div>
+
+      <div className="form-row-split">
         <select
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
@@ -48,6 +51,7 @@ function TaskForm({ projects, onAddTask }) {
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
+
         <select
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
@@ -57,6 +61,9 @@ function TaskForm({ projects, onAddTask }) {
           <option value="MEDIUM">Medium Priority</option>
           <option value="HIGH">High Priority</option>
         </select>
+      </div>
+
+      <div className="form-row">
         <input
           type="date"
           value={dueDate}

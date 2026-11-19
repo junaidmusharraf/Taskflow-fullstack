@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import AuthForm from './components/AuthForm'
 import ProjectBar from './components/ProjectBar'
 import TaskForm from './components/TaskForm'
@@ -18,6 +18,7 @@ function App() {
   const [selectedProject, setSelectedProject] = useState('ALL')
   const [filter, setFilter] = useState('ALL')
   const [priorityFilter, setPriorityFilter] = useState('ALL')
+  const [dueFilter, setDueFilter] = useState('ALL')
   const [search, setSearch] = useState('')
   const [ordering, setOrdering] = useState('-created_at')
   const [page, setPage] = useState(1)
@@ -109,6 +110,23 @@ function App() {
     }
   }, [token, fetchProjects, fetchTasks])
 
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  const visibleTasks = useMemo(() => {
+    if (dueFilter === 'OVERDUE') {
+      return tasks.filter((t) => !t.completed && t.due_date && t.due_date < todayStr)
+    }
+    return tasks
+  }, [tasks, dueFilter, todayStr])
+
+  const stats = useMemo(() => {
+    const completedCount = tasks.filter((t) => t.completed).length
+    const highCount = tasks.filter((t) => !t.completed && t.priority === 'HIGH').length
+    const overdueCount = tasks.filter((t) => !t.completed && t.due_date && t.due_date < todayStr).length
+    const pct = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0
+    return { completedCount, highCount, overdueCount, pct }
+  }, [tasks, todayStr])
+
   if (!token) {
     return (
       <div className="app-container auth-wrapper">
@@ -179,78 +197,115 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="app-header header-flex">
+      <header className="app-header">
         <div>
           <h1>TaskFlow</h1>
           <p>Relational PostgreSQL + Django REST + React</p>
         </div>
         <div className="user-controls">
           <span className="user-badge">Signed in as <strong>{username}</strong></span>
-          <button onClick={handleLogout} className="btn-logout">Logout</button>
+          <button type="button" onClick={handleLogout} className="btn-logout">Logout</button>
         </div>
       </header>
 
-      <ProjectBar
-        projects={projects}
-        selectedProject={selectedProject}
-        setSelectedProject={handleFilterChange(setSelectedProject)}
-        onCreateProject={handleCreateProject}
-      />
-
-      <TaskForm projects={projects} onAddTask={handleAddTask} />
-
-      <FilterBar
-        search={search}
-        setSearch={handleFilterChange(setSearch)}
-        filter={filter}
-        setFilter={handleFilterChange(setFilter)}
-        priorityFilter={priorityFilter}
-        setPriorityFilter={handleFilterChange(setPriorityFilter)}
-        ordering={ordering}
-        setOrdering={handleFilterChange(setOrdering)}
-        totalCount={totalCount}
-      />
-
-      {loading ? (
-        <p className="empty-state">Querying PostgreSQL...</p>
-      ) : tasks.length === 0 ? (
-        <p className="empty-state">No tasks yet. Create your first private task above!</p>
-      ) : (
-        <>
-          <ul className="task-list">
-            {tasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                projects={projects}
-                onToggleComplete={handleToggleComplete}
-                onUpdateTask={handleUpdateTask}
-                onDeleteTask={handleDeleteTask}
-              />
-            ))}
-          </ul>
-
-          <div className="pagination-bar">
-            <button
-              onClick={() => setPage((p) => p - 1)}
-              disabled={!hasPrev}
-              className="btn-page"
-            >
-              &larr; Previous
-            </button>
-            <span className="page-info">
-              Page {page} of {totalPages} ({totalCount} total)
-            </span>
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={!hasNext}
-              className="btn-page"
-            >
-              Next &rarr;
-            </button>
+      <section className="stats-panel" aria-label="Workspace overview">
+        <div className="stats-grid">
+          <div className="stat-card">
+            <span className="stat-label">Matching Tasks</span>
+            <span className="stat-value">{totalCount}</span>
           </div>
-        </>
-      )}
+          <div className="stat-card">
+            <span className="stat-label">Completed (Page)</span>
+            <span className="stat-value emerald">{stats.completedCount}</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">High Priority</span>
+            <span className="stat-value cyan">{stats.highCount}</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">Overdue</span>
+            <span className="stat-value rose">{stats.overdueCount}</span>
+          </div>
+        </div>
+        <div className="progress-row">
+          <div className="progress-track">
+            <div className="progress-fill" style={{ width: `${stats.pct}%` }} />
+          </div>
+          <span className="progress-text">{stats.pct}% done on page</span>
+        </div>
+      </section>
+
+      <div className="workspace-layout">
+        <aside className="workspace-sidebar">
+          <ProjectBar
+            projects={projects}
+            selectedProject={selectedProject}
+            setSelectedProject={handleFilterChange(setSelectedProject)}
+            onCreateProject={handleCreateProject}
+          />
+
+          <TaskForm projects={projects} onAddTask={handleAddTask} />
+        </aside>
+
+        <main className="workspace-main">
+          <FilterBar
+            search={search}
+            setSearch={handleFilterChange(setSearch)}
+            filter={filter}
+            setFilter={handleFilterChange(setFilter)}
+            priorityFilter={priorityFilter}
+            setPriorityFilter={handleFilterChange(setPriorityFilter)}
+            dueFilter={dueFilter}
+            setDueFilter={setDueFilter}
+            ordering={ordering}
+            setOrdering={handleFilterChange(setOrdering)}
+            totalCount={totalCount}
+          />
+
+          {loading ? (
+            <p className="empty-state">Querying PostgreSQL...</p>
+          ) : visibleTasks.length === 0 ? (
+            <p className="empty-state">No matching tasks found. Try adjusting filters or add a task on the left!</p>
+          ) : (
+            <>
+              <ul className="task-list">
+                {visibleTasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    projects={projects}
+                    onToggleComplete={handleToggleComplete}
+                    onUpdateTask={handleUpdateTask}
+                    onDeleteTask={handleDeleteTask}
+                  />
+                ))}
+              </ul>
+
+              <div className="pagination-bar">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => p - 1)}
+                  disabled={!hasPrev}
+                  className="btn-page"
+                >
+                  &larr; Previous
+                </button>
+                <span className="page-info">
+                  Page {page} of {totalPages} ({totalCount} total)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={!hasNext}
+                  className="btn-page"
+                >
+                  Next &rarr;
+                </button>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
     </div>
   )
 }
