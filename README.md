@@ -34,7 +34,3 @@ A multi-user project and task tracking web application built with **React (Vite)
 
 ### 1. Backend Setup
 ```bash
-cd backend
-python -m venv env
-env\Scripts\activate
-pip install -r requirements.txt
